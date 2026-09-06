@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>QR Sign Maker</title>
+<style>
+  :root {
+    --bg: #f3f4f6;
+    --panel: #ffffff;
+    --border: #d1d5db;
+    --text: #111827;
+    --muted: #6b7280;
+    --accent: #2563eb;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    display: flex;
+    min-height: 100vh;
+  }
+
+  /* ---------- Controls panel ---------- */
+  #controls {
+    width: 340px;
+    flex: 0 0 340px;
+    background: var(--panel);
+    border-right: 1px solid var(--border);
+    padding: 18px 18px 40px;
+    overflow-y: auto;
+  }
+  #controls h1 { font-size: 18px; margin: 0 0 4px; }
+  #controls .sub { font-size: 12px; color: var(--muted); margin: 0 0 16px; }
+  fieldset {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px 12px;
+    margin: 0 0 14px;
+  }
+  legend { font-size: 12px; font-weight: 600; color: var(--muted); padding: 0 4px; text-transform: uppercase; letter-spacing: .04em; }
+  label { display: block; font-size: 13px; margin: 8px 0 3px; }
+  label:first-of-type { margin-top: 0; }
+  input[type=text], select, textarea {
+    width: 100%; padding: 6px 8px; font: inherit; font-size: 14px;
+    border: 1px solid var(--border); border-radius: 6px; background: #fff; color: var(--text);
+  }
+  textarea { resize: vertical; min-height: 44px; }
+  .row { display: flex; gap: 10px; align-items: center; }
+  .row > * { flex: 1; }
+  .row .val { flex: 0 0 52px; text-align: right; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  input[type=range] { width: 100%; }
+  input[type=color] { width: 44px; height: 30px; padding: 2px; border: 1px solid var(--border); border-radius: 6px; background: #fff; }
+  .check { display: flex; align-items: center; gap: 8px; font-size: 13px; margin-top: 8px; }
+  .check input { margin: 0; }
+
+  #drop {
+    border: 2px dashed var(--border);
+    border-radius: 8px;
+    padding: 18px 10px;
+    text-align: center;
+    font-size: 13px;
+    color: var(--muted);
+    cursor: pointer;
+    transition: border-color .15s, background .15s;
+  }
+  #drop.over { border-color: var(--accent); background: #eff6ff; }
+  #drop strong { color: var(--text); }
+  #file { display: none; }
+  #fileinfo { font-size: 12px; color: var(--muted); margin-top: 6px; min-height: 16px; word-break: break-all; }
+
+  button {
+    font: inherit; font-size: 14px; padding: 9px 12px; border-radius: 6px;
+    border: 1px solid var(--border); background: #fff; cursor: pointer; color: var(--text);
+  }
+  button.primary { background: var(--accent); color: #fff; border-color: var(--accent); font-weight: 600; width: 100%; }
+  button.primary:disabled { opacity: .5; cursor: not-allowed; }
+  .hint { font-size: 12px; color: var(--muted); margin-top: 8px; line-height: 1.45; }
+
+  /* ---------- Preview ---------- */
+  #stage {
+    flex: 1;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 28px;
+    overflow: auto;
+  }
+  #page-wrap {
+    /* scale the 8.5x11in page to fit the viewport */
+    transform-origin: top center;
+  }
+  #page {
+    width: 8.5in;
+    height: 11in;
+    background: #fff;
+    box-shadow: 0 4px 24px rgba(0,0,0,.18);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    padding: var(--margin, 0.5in);
+    gap: var(--gap, 0.25in);
+  }
+  #page.top    { justify-content: flex-start; }
+  #page.bottom { justify-content: flex-end; }
+  .txt {
+    width: 100%;
+    text-align: center;
+    line-height: 1.15;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    overflow-wrap: anywhere;
+    flex: 0 0 auto;
+  }
+  #topText    { font-size: var(--top-size, 48pt);    font-weight: var(--top-weight, 700);    font-family: var(--font, Helvetica, Arial, sans-serif); color: var(--top-color, #000); }
+  #bottomText { font-size: var(--bottom-size, 24pt); font-weight: var(--bottom-weight, 400); font-family: var(--font, Helvetica, Arial, sans-serif); color: var(--bottom-color, #000); }
+  .txt:empty { display: none; }
+  #qr {
+    width: var(--qr-size, 7in);
+    height: var(--qr-size, 7in);
+    max-width: 100%;
+    flex: 0 0 auto;
+    display: flex; align-items: center; justify-content: center;
+  }
+  #qr:empty {
+    border: 2px dashed var(--border);
+    border-radius: 12px;
+    color: var(--muted);
+    font-size: 18pt;
+  }
+  #qr:empty::after { content: "QR code goes here"; }
+  #qr > svg, #qr > img {
+    width: 100%; height: 100%;
+    display: block;
+    image-rendering: pixelated;   /* keep PNG QR modules crisp when upscaled */
+    image-rendering: crisp-edges;
+  }
+
+  /* ---------- Print ---------- */
+  @page { size: letter portrait; margin: 0; }
+  @media print {
+    html, body { height: auto; background: #fff; display: block; }
+    #controls, #stage-hint { display: none !important; }
+    #stage { padding: 0; display: block; overflow: visible; }
+    #page-wrap { transform: none !important; }
+    #page { box-shadow: none; width: 8.5in; height: 11in; page-break-after: avoid; }
+    #qr:empty { border: none; }
+    #qr:empty::after { content: ""; }
+    * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
+</style>
+</head>
+<body>
+
+<aside id="controls">
+  <h1>QR Sign Maker</h1>
+  <p class="sub">Letter (8.5 × 11 in) printable sign. Works fully offline.</p>
+
+  <fieldset>
+    <legend>QR code image</legend>
+    <div id="drop" tabindex="0">
+      <strong>Click to choose</strong>, drag &amp; drop, or paste (Ctrl+V)<br>an SVG or PNG QR code
+    </div>
+    <input type="file" id="file" accept=".svg,.png,.jpg,.jpeg,.webp,image/svg+xml,image/png,image/jpeg,image/webp">
+    <div id="fileinfo"></div>
+    <label>QR size</label>
+    <div class="row">
+      <input type="range" id="qrSize" min="2" max="7.5" step="0.1" value="7">
+      <span class="val" id="qrSizeVal">7.0 in</span>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Top text</legend>
+    <textarea id="topIn" placeholder="e.g. Georgia VGC Discord"></textarea>
+    <label>Size</label>
+    <div class="row">
+      <input type="range" id="topSize" min="12" max="120" step="1" value="48">
+      <span class="val" id="topSizeVal">48 pt</span>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <label class="check" style="margin:0"><input type="checkbox" id="topBold" checked> Bold</label>
+      <label class="check" style="margin:0; flex:0 0 auto">Color <input type="color" id="topColor" value="#000000"></label>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Bottom text</legend>
+    <textarea id="bottomIn" placeholder="e.g. https://discord.com/invite/..."></textarea>
+    <label>Size</label>
+    <div class="row">
+      <input type="range" id="bottomSize" min="10" max="120" step="1" value="24">
+      <span class="val" id="bottomSizeVal">24 pt</span>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <label class="check" style="margin:0"><input type="checkbox" id="bottomBold"> Bold</label>
+      <label class="check" style="margin:0; flex:0 0 auto">Color <input type="color" id="bottomColor" value="#000000"></label>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Layout</legend>
+    <label>Font</label>
+    <select id="font">
+      <option value="Helvetica, Arial, sans-serif">Helvetica / Arial</option>
+      <option value="'Liberation Sans', Arial, sans-serif">Liberation Sans</option>
+      <option value="Verdana, Geneva, sans-serif">Verdana</option>
+      <option value="'Trebuchet MS', sans-serif">Trebuchet MS</option>
+      <option value="Georgia, 'Times New Roman', serif">Georgia</option>
+      <option value="'Times New Roman', Times, serif">Times New Roman</option>
+      <option value="'Courier New', monospace">Courier New</option>
+      <option value="Impact, 'Arial Black', sans-serif">Impact</option>
+    </select>
+    <label>Vertical alignment</label>
+    <select id="valign">
+      <option value="center">Centered</option>
+      <option value="top">Top</option>
+      <option value="bottom">Bottom</option>
+    </select>
+    <label>Page margin</label>
+    <div class="row">
+      <input type="range" id="margin" min="0" max="1.5" step="0.05" value="0.5">
+      <span class="val" id="marginVal">0.50 in</span>
+    </div>
+    <label>Gap between items</label>
+    <div class="row">
+      <input type="range" id="gap" min="0" max="1.5" step="0.05" value="0.25">
+      <span class="val" id="gapVal">0.25 in</span>
+    </div>
+  </fieldset>
+
+  <button class="primary" id="printBtn">Save as PDF / Print…</button>
+  <button id="resetBtn" style="width:100%; margin-top:8px">Reset to defaults</button>
+  <p class="hint">
+    In the print dialog choose <b>Save as PDF</b>, paper size <b>Letter</b>, margins <b>None</b>,
+    and turn <b>off</b> "Headers and footers". SVG QR codes stay vector in the PDF.
+  </p>
+  <p class="hint" id="overflowWarn" style="color:#b91c1c; display:none">
+    ⚠ Content is taller than the page. Reduce the QR size, text size, or margin.
+  </p>
+</aside>
+
+<main id="stage">
+  <div id="page-wrap">
+    <div id="page">
+      <div id="topText" class="txt"></div>
+      <div id="qr"></div>
+      <div id="bottomText" class="txt"></div>
+    </div>
+  </div>
+</main>
+
+<script>
+(function () {
+  const $ = id => document.getElementById(id);
+  const page = $('page'), qr = $('qr');
+  const root = document.documentElement.style;
+
+  // ---------- Settings → CSS ----------
+  function apply() {
+    root.setProperty('--qr-size', $('qrSize').value + 'in');
+    $('qrSizeVal').textContent = (+$('qrSize').value).toFixed(1) + ' in';
+
+    $('topText').textContent = $('topIn').value;
+    root.setProperty('--top-size', $('topSize').value + 'pt');
+    $('topSizeVal').textContent = $('topSize').value + ' pt';
+    root.setProperty('--top-weight', $('topBold').checked ? 700 : 400);
+    root.setProperty('--top-color', $('topColor').value);
+
+    $('bottomText').textContent = $('bottomIn').value;
+    root.setProperty('--bottom-size', $('bottomSize').value + 'pt');
+    $('bottomSizeVal').textContent = $('bottomSize').value + ' pt';
+    root.setProperty('--bottom-weight', $('bottomBold').checked ? 700 : 400);
+    root.setProperty('--bottom-color', $('bottomColor').value);
+
+    root.setProperty('--font', $('font').value);
+    page.className = $('valign').value;
+    root.setProperty('--margin', $('margin').value + 'in');
+    $('marginVal').textContent = (+$('margin').value).toFixed(2) + ' in';
+    root.setProperty('--gap', $('gap').value + 'in');
+    $('gapVal').textContent = (+$('gap').value).toFixed(2) + ' in';
+
+    checkOverflow();
+    save();
+  }
+
+  function checkOverflow() {
+    // Sum children heights + gaps + padding vs. page height (all in CSS px, unscaled)
+    const cs = getComputedStyle(page);
+    const pad = parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom);
+    const gap = parseFloat(cs.rowGap) || 0;
+    const kids = [...page.children].filter(k => k.offsetHeight > 0 || k.id === 'qr');
+    let h = pad + Math.max(0, kids.length - 1) * gap;
+    kids.forEach(k => h += k.offsetHeight);
+    $('overflowWarn').style.display = h > page.offsetHeight + 1 ? 'block' : 'none';
+  }
+
+  // ---------- Image loading ----------
+  function setInfo(msg) { $('fileinfo').textContent = msg; }
+
+  function loadFile(file) {
+    if (!file) return;
+    const name = file.name || 'pasted image';
+    const isSvg = file.type === 'image/svg+xml' || /\.svg$/i.test(name);
+    const reader = new FileReader();
+    if (isSvg) {
+      reader.onload = e => setSvg(e.target.result, name);
+      reader.readAsText(file);
+    } else if (/^image\//.test(file.type)) {
+      reader.onload = e => setRaster(e.target.result, name);
+      reader.readAsDataURL(file);
+    } else {
+      setInfo('Unsupported file type: ' + (file.type || name));
+    }
+  }
+
+  function setSvg(text, name) {
+    const doc = new DOMParser().parseFromString(text, 'image/svg+xml');
+    const svg = doc.querySelector('svg');
+    if (!svg || doc.querySelector('parsererror')) { setInfo('Could not parse SVG.'); return; }
+    // Make it scale to the container: ensure a viewBox, drop fixed dimensions.
+    if (!svg.getAttribute('viewBox')) {
+      const w = parseFloat(svg.getAttribute('width')), h = parseFloat(svg.getAttribute('height'));
+      if (w && h) svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
+    }
+    svg.removeAttribute('width'); svg.removeAttribute('height');
+    svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+    svg.setAttribute('shape-rendering', 'crispEdges');
+    // Strip scripts for safety
+    svg.querySelectorAll('script').forEach(s => s.remove());
+    qr.innerHTML = '';
+    qr.appendChild(document.importNode(svg, true));
+    setInfo('Loaded SVG: ' + name + ' (vector)');
+    saveImage({ kind: 'svg', data: text, name });
+    checkOverflow();
+  }
+
+  function setRaster(dataUrl, name) {
+    const img = new Image();
+    img.onload = () => {
+      qr.innerHTML = '';
+      qr.appendChild(img);
+      setInfo(`Loaded ${name} (${img.naturalWidth}×${img.naturalHeight} px)` +
+              (img.naturalWidth < 600 ? ' — low resolution; an SVG will print sharper' : ''));
+      saveImage({ kind: 'raster', data: dataUrl, name });
+      checkOverflow();
+    };
+    img.onerror = () => setInfo('Could not load image.');
+    img.alt = 'QR code';
+    img.src = dataUrl;
+  }
+
+  // File picker
+  $('drop').addEventListener('click', () => $('file').click());
+  $('drop').addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); $('file').click(); } });
+  $('file').addEventListener('change', e => loadFile(e.target.files[0]));
+
+  // Drag & drop anywhere
+  ['dragenter', 'dragover'].forEach(ev => document.addEventListener(ev, e => { e.preventDefault(); $('drop').classList.add('over'); }));
+  ['dragleave', 'drop'].forEach(ev => document.addEventListener(ev, e => { e.preventDefault(); $('drop').classList.remove('over'); }));
+  document.addEventListener('drop', e => {
+    const f = e.dataTransfer.files && e.dataTransfer.files[0];
+    if (f) loadFile(f);
+  });
+
+  // Paste image or SVG text
+  document.addEventListener('paste', e => {
+    if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT') return;
+    const items = e.clipboardData && e.clipboardData.items;
+    if (!items) return;
+    for (const it of items) {
+      if (it.kind === 'file' && /^image\//.test(it.type)) { loadFile(it.getAsFile()); return; }
+    }
+    const text = e.clipboardData.getData('text/plain');
+    if (text && /<svg[\s>]/i.test(text)) setSvg(text, 'pasted SVG');
+  });
+
+  // ---------- Print ----------
+  $('printBtn').addEventListener('click', () => window.print());
+
+  // ---------- Reset ----------
+  const DEFAULTS = { qrSize:'7', topIn:'', topSize:'48', topBold:true, topColor:'#000000',
+    bottomIn:'', bottomSize:'24', bottomBold:false, bottomColor:'#000000',
+    font:'Helvetica, Arial, sans-serif', valign:'center', margin:'0.5', gap:'0.25' };
+  $('resetBtn').addEventListener('click', () => {
+    if (!confirm('Reset all text, sizes and layout options to their defaults? (The QR image is kept.)')) return;
+    for (const f in DEFAULTS) { if ($(f).type === 'checkbox') $(f).checked = DEFAULTS[f]; else $(f).value = DEFAULTS[f]; }
+    apply();
+  });
+
+  // ---------- Fit preview to viewport ----------
+  function fit() {
+    const stage = $('stage');
+    const avail = stage.clientHeight - 56, availW = stage.clientWidth - 56;
+    const s = Math.min(1, avail / page.offsetHeight, availW / page.offsetWidth);
+    $('page-wrap').style.transform = `scale(${s})`;
+    $('page-wrap').style.height = (page.offsetHeight * s) + 'px';
+  }
+  window.addEventListener('resize', fit);
+
+  // ---------- Persistence (localStorage) ----------
+  const KEY = 'qrSignMaker';
+  const fields = ['qrSize','topIn','topSize','topBold','topColor','bottomIn','bottomSize','bottomBold','bottomColor','font','valign','margin','gap'];
+  function save() {
+    try {
+      const o = {};
+      fields.forEach(f => o[f] = $(f).type === 'checkbox' ? $(f).checked : $(f).value);
+      localStorage.setItem(KEY, JSON.stringify(o));
+    } catch (_) {}
+  }
+  function saveImage(img) {
+    try { localStorage.setItem(KEY + ':img', JSON.stringify(img)); } catch (_) {}
+  }
+  function restore() {
+    try {
+      const o = JSON.parse(localStorage.getItem(KEY) || 'null');
+      if (o) fields.forEach(f => { if (f in o) { if ($(f).type === 'checkbox') $(f).checked = o[f]; else $(f).value = o[f]; } });
+      const img = JSON.parse(localStorage.getItem(KEY + ':img') || 'null');
+      if (img) img.kind === 'svg' ? setSvg(img.data, img.name) : setRaster(img.data, img.name);
+    } catch (_) {}
+  }
+
+  fields.forEach(f => $(f).addEventListener('input', apply));
+  restore();
+  apply();
+  fit();
+})();
+</script>
+</body>
+</html>
