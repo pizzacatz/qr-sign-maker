@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>QR Sign Maker</title>
+<style id="pageSizeCss">@page { size: 8.5in 11in; margin: 0; }</style>
 <style>
   :root {
     --bg: #f3f4f6;
@@ -93,8 +94,8 @@
     transform-origin: top center;
   }
   #page {
-    width: 8.5in;
-    height: 11in;
+    width: var(--pw, 8.5in);
+    height: var(--ph, 11in);
     background: #fff;
     box-shadow: 0 4px 24px rgba(0,0,0,.18);
     display: flex;
@@ -105,6 +106,7 @@
     padding: var(--margin, 0.5in);
     gap: var(--gap, 0.25in);
   }
+  #page.landscape { --pw: 11in; --ph: 8.5in; }
   #page.top    { justify-content: flex-start; }
   #page.bottom { justify-content: flex-end; }
   .txt {
@@ -141,13 +143,12 @@
   }
 
   /* ---------- Print ---------- */
-  @page { size: letter portrait; margin: 0; }
   @media print {
     html, body { height: auto; background: #fff; display: block; }
     #controls, #stage-hint { display: none !important; }
     #stage { padding: 0; display: block; overflow: visible; }
     #page-wrap { transform: none !important; }
-    #page { box-shadow: none; width: 8.5in; height: 11in; page-break-after: avoid; }
+    #page { box-shadow: none; page-break-after: avoid; }
     #qr:empty { border: none; }
     #qr:empty::after { content: ""; }
     * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
@@ -157,9 +158,6 @@
 <body>
 
 <aside id="controls">
-  <h1>QR Sign Maker</h1>
-  <p class="sub">Letter (8.5 × 11 in) printable sign. Works fully offline.</p>
-
   <fieldset>
     <legend>QR code image</legend>
     <div id="drop" tabindex="0">
@@ -176,7 +174,7 @@
 
   <fieldset>
     <legend>Top text</legend>
-    <textarea id="topIn" placeholder="e.g. Georgia VGC Discord"></textarea>
+    <textarea id="topIn">QR Sign Maker</textarea>
     <label>Size</label>
     <div class="row">
       <input type="range" id="topSize" min="12" max="120" step="1" value="48">
@@ -190,7 +188,7 @@
 
   <fieldset>
     <legend>Bottom text</legend>
-    <textarea id="bottomIn" placeholder="e.g. https://discord.com/invite/..."></textarea>
+    <textarea id="bottomIn">Bottom text</textarea>
     <label>Size</label>
     <div class="row">
       <input type="range" id="bottomSize" min="10" max="120" step="1" value="24">
@@ -214,6 +212,11 @@
       <option value="'Times New Roman', Times, serif">Times New Roman</option>
       <option value="'Courier New', monospace">Courier New</option>
       <option value="Impact, 'Arial Black', sans-serif">Impact</option>
+    </select>
+    <label>Orientation</label>
+    <select id="orient">
+      <option value="portrait">Portrait (8.5 × 11 in)</option>
+      <option value="landscape">Landscape (11 × 8.5 in)</option>
     </select>
     <label>Vertical alignment</label>
     <select id="valign">
@@ -278,13 +281,17 @@
     root.setProperty('--bottom-color', $('bottomColor').value);
 
     root.setProperty('--font', $('font').value);
-    page.className = $('valign').value;
+    page.className = $('valign').value + ' ' + $('orient').value;
+    const land = $('orient').value === 'landscape';
+    $('pageSizeCss').textContent = `@page { size: ${land ? '11in 8.5in' : '8.5in 11in'}; margin: 0; }`;
+    if (!land) { $('qrSize').max = 7.5; } else { $('qrSize').max = 7; if (+$('qrSize').value > 7) $('qrSize').value = 7; }
     root.setProperty('--margin', $('margin').value + 'in');
     $('marginVal').textContent = (+$('margin').value).toFixed(2) + ' in';
     root.setProperty('--gap', $('gap').value + 'in');
     $('gapVal').textContent = (+$('gap').value).toFixed(2) + ' in';
 
     checkOverflow();
+    fit();
     save();
   }
 
@@ -383,9 +390,9 @@
   $('printBtn').addEventListener('click', () => window.print());
 
   // ---------- Reset ----------
-  const DEFAULTS = { qrSize:'7', topIn:'', topSize:'48', topBold:true, topColor:'#000000',
-    bottomIn:'', bottomSize:'24', bottomBold:false, bottomColor:'#000000',
-    font:'Helvetica, Arial, sans-serif', valign:'center', margin:'0.5', gap:'0.25' };
+  const DEFAULTS = { qrSize:'7', topIn:'QR Sign Maker', topSize:'48', topBold:true, topColor:'#000000',
+    bottomIn:'Bottom text', bottomSize:'24', bottomBold:false, bottomColor:'#000000',
+    font:'Helvetica, Arial, sans-serif', orient:'portrait', valign:'center', margin:'0.5', gap:'0.25' };
   $('resetBtn').addEventListener('click', () => {
     if (!confirm('Reset all text, sizes and layout options to their defaults? (The QR image is kept.)')) return;
     for (const f in DEFAULTS) { if ($(f).type === 'checkbox') $(f).checked = DEFAULTS[f]; else $(f).value = DEFAULTS[f]; }
@@ -404,7 +411,7 @@
 
   // ---------- Persistence (localStorage) ----------
   const KEY = 'qrSignMaker';
-  const fields = ['qrSize','topIn','topSize','topBold','topColor','bottomIn','bottomSize','bottomBold','bottomColor','font','valign','margin','gap'];
+  const fields = ['qrSize','topIn','topSize','topBold','topColor','bottomIn','bottomSize','bottomBold','bottomColor','font','orient','valign','margin','gap'];
   function save() {
     try {
       const o = {};

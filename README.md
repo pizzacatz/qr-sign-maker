@@ -1,6 +1,6 @@
 # QR Sign Maker
 
-Offline, single-file web app for printing a large QR code sign on Letter (8.5 × 11 in) paper.
+Offline, single-file web app for printing a large QR code sign on Letter paper, portrait or landscape.
 
 **Use it:** https://pizzacatz.github.io/svg_sign_maker/ — or download `index.html` and open it locally. No network needed.
 
