@@ -41,6 +41,9 @@
     padding: 10px 12px 12px;
     margin: 0 0 14px;
   }
+  legend { display: flex; align-items: center; gap: 8px; }
+  legend .reset { font-size: 11px; padding: 1px 7px; border-radius: 10px; text-transform: none; letter-spacing: 0; font-weight: 400; color: var(--muted); }
+  legend .reset:hover { color: var(--text); border-color: var(--muted); }
   legend { font-size: 12px; font-weight: 600; color: var(--muted); padding: 0 4px; text-transform: uppercase; letter-spacing: .04em; }
   label { display: block; font-size: 13px; margin: 8px 0 3px; }
   label:first-of-type { margin-top: 0; }
@@ -159,7 +162,7 @@
 
 <aside id="controls">
   <fieldset>
-    <legend>QR code image</legend>
+    <legend>QR code image <button type="button" class="reset" data-group="qr" title="Reset this section to defaults">reset</button></legend>
     <div id="drop" tabindex="0">
       <strong>Click to choose</strong>, drag &amp; drop, or paste (Ctrl+V)<br>an SVG or PNG QR code
     </div>
@@ -173,7 +176,7 @@
   </fieldset>
 
   <fieldset>
-    <legend>Top text</legend>
+    <legend>Top text <button type="button" class="reset" data-group="top" title="Reset this section to defaults">reset</button></legend>
     <textarea id="topIn">QR Sign Maker</textarea>
     <label>Size</label>
     <div class="row">
@@ -187,7 +190,7 @@
   </fieldset>
 
   <fieldset>
-    <legend>Bottom text</legend>
+    <legend>Bottom text <button type="button" class="reset" data-group="bottom" title="Reset this section to defaults">reset</button></legend>
     <textarea id="bottomIn">Bottom text</textarea>
     <label>Size</label>
     <div class="row">
@@ -201,7 +204,7 @@
   </fieldset>
 
   <fieldset>
-    <legend>Layout</legend>
+    <legend>Layout <button type="button" class="reset" data-group="layout" title="Reset this section to defaults">reset</button></legend>
     <label>Font</label>
     <select id="font">
       <option value="Helvetica, Arial, sans-serif">Helvetica / Arial</option>
@@ -237,7 +240,6 @@
   </fieldset>
 
   <button class="primary" id="printBtn">Save as PDF / Print…</button>
-  <button id="resetBtn" style="width:100%; margin-top:8px">Reset to defaults</button>
   <p class="hint">
     In the print dialog choose <b>Save as PDF</b>, paper size <b>Letter</b>, margins <b>None</b>,
     and turn <b>off</b> "Headers and footers". SVG QR codes stay vector in the PDF.
@@ -393,11 +395,16 @@
   const DEFAULTS = { qrSize:'7', topIn:'QR Sign Maker', topSize:'48', topBold:true, topColor:'#000000',
     bottomIn:'Bottom text', bottomSize:'24', bottomBold:false, bottomColor:'#000000',
     font:'Helvetica, Arial, sans-serif', orient:'portrait', valign:'center', margin:'0.5', gap:'0.25' };
-  $('resetBtn').addEventListener('click', () => {
-    if (!confirm('Reset all text, sizes and layout options to their defaults? (The QR image is kept.)')) return;
-    for (const f in DEFAULTS) { if ($(f).type === 'checkbox') $(f).checked = DEFAULTS[f]; else $(f).value = DEFAULTS[f]; }
+  const GROUPS = {
+    qr: ['qrSize'],
+    top: ['topIn','topSize','topBold','topColor'],
+    bottom: ['bottomIn','bottomSize','bottomBold','bottomColor'],
+    layout: ['font','orient','valign','margin','gap'],
+  };
+  document.querySelectorAll('legend .reset').forEach(btn => btn.addEventListener('click', () => {
+    GROUPS[btn.dataset.group].forEach(f => { if ($(f).type === 'checkbox') $(f).checked = DEFAULTS[f]; else $(f).value = DEFAULTS[f]; });
     apply();
-  });
+  }));
 
   // ---------- Fit preview to viewport ----------
   function fit() {
