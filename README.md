@@ -5,6 +5,8 @@ Load a QR code image, add a title and caption, and save a print-ready PDF straig
 
 **Live:** https://pizzacatz.github.io/qr-sign-maker/
 
+> **Status: complete.** This project is finished and not under active development. It works as-is and will not receive new features. Bug reports are welcome but may not be addressed.
+
 No build step, no dependencies, no network access. Everything is in `index.html`.
 
 ## Features
@@ -42,6 +44,7 @@ The page already declares Letter size with zero margins, so Chrome and Edge usua
 ## Development
 
 There is nothing to install. Edit `index.html` and reload. Pushing to `main` deploys to GitHub Pages.
+The project is complete, so feel free to fork it if you want to take it further.
 
 ## License
 
