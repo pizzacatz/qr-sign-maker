@@ -3,7 +3,7 @@
 A single-file, fully offline web app for printing a large QR code sign on Letter (8.5 × 11 in) paper.
 Load a QR code image, add a title and caption, and save a print-ready PDF straight from the browser.
 
-**Live:** https://pizzacatz.github.io/svg_sign_maker/
+**Live:** https://pizzacatz.github.io/qr-sign-maker/
 
 No build step, no dependencies, no network access. Everything is in `index.html`.
 
@@ -20,7 +20,7 @@ No build step, no dependencies, no network access. Everything is in `index.html`
 
 ## Usage
 
-1. Open the [live page](https://pizzacatz.github.io/svg_sign_maker/) or download `index.html` and open it locally.
+1. Open the [live page](https://pizzacatz.github.io/qr-sign-maker/) or download `index.html` and open it locally.
 2. Load your QR code image.
 3. Edit the top and bottom text, or clear either one to hide it.
 4. Adjust size, font, orientation, and margins to taste.
@@ -45,4 +45,4 @@ There is nothing to install. Edit `index.html` and reload. Pushing to `main` dep
 
 ## License
 
-MIT
+MIT — see [LICENSE](LICENSE).
