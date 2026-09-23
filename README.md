@@ -5,7 +5,7 @@ Type the text or URL to encode (or load an existing QR code image), add a title 
 
 **Live:** https://pizzacatz.github.io/qr-sign-maker/
 
-> **Status: complete.** This project does what it set out to do and is not under active development. Bug reports are welcome but may not be addressed.
+> **Status: complete.** This project is finished and not under active development. It works as-is and will not receive new features. Bug reports are welcome but may not be addressed.
 
 No build step, no network access. Everything is in `index.html`, including one vendored MIT library (Nayuki's [QR Code generator](https://www.nayuki.io/page/qr-code-generator-library)) that does the encoding.
 

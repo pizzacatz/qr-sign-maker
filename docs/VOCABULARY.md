@@ -5,8 +5,9 @@ language with the matching technical term after each phrase, (3) as a
 glossary table anchoring every term to where it appears in this project.
 Read 1 to test yourself, 2 to decode it, 3 to make it stick.
 
-This is a small project — one `index.html` of about 450 lines — so the
-vocabulary is small too. Everything below is something the file actually does.
+This is a small project — one `index.html` of about 500 lines of its own code,
+plus a vendored QR encoder — so the vocabulary is small too. Everything below
+is something the file actually does.
 
 ---
 
@@ -15,12 +16,30 @@ vocabulary is small too. Everything below is something the file actually does.
 ### What it is
 
 QR Sign Maker is a **single-file web app**: all **markup**, **CSS**, and
-**JavaScript** live **inline** in `index.html`, with **zero dependencies**, **no
-build step**, and **no network access** at runtime, so it works fully
-**offline**. It's deployed as a **static site** on **GitHub Pages** — a push to
-`main` is the whole **deployment pipeline**. The user loads a QR code image,
-adds optional top and bottom text, and produces a print-ready Letter-size
-page, which the browser's own **print pipeline** turns into a **PDF**.
+**JavaScript** live **inline** in `index.html`, with one **vendored**
+dependency, **no build step**, and **no network access** at runtime, so it
+works fully **offline**. It's deployed as a **static site** on **GitHub
+Pages** — a push to `main` is the whole **deployment pipeline**. The user types
+text to encode (or loads an existing QR code image), adds optional top and
+bottom text, and produces a print-ready Letter-size page, which the browser's
+own **print pipeline** turns into a **PDF**.
+
+### QR generation
+
+The encoder is Nayuki's `qrcodegen`, an **MIT-licensed** **TypeScript**
+library **transpiled** to plain JavaScript with `tsc` and pasted into a
+`<script>` block with its license header — **vendoring** rather than a
+**package manager**, so the file stays self-contained. `encodeText()` picks
+the smallest **QR version** (symbol size) that fits the input in the most
+compact **encoding mode** (numeric, alphanumeric, byte, kanji), at
+**error correction level H**, the highest, so up to 30% of the symbol can be
+damaged and still scan. The returned object exposes a **module matrix** via
+`getModule(x, y)`; the app walks it and emits one `M x y h1v1h-1z` command per
+dark module into a single SVG **path** — a hand-rolled **SVG renderer** of
+about fifteen lines. The **viewBox** is padded by four modules on every side
+to bake in the **quiet zone**. Input is **trimmed** first, and if it exceeds
+the level-H **capacity** (about 1,270 bytes) the library throws a
+`RangeError`, which is caught and surfaced as an inline warning.
 
 ### Input handling
 
@@ -47,8 +66,9 @@ is why SVG QR codes stay **vector** (resolution-independent) all the way into
 the PDF. Raster images (PNG/JPG/WebP) are shown in an `<img>` with
 **image-rendering: pixelated / crisp-edges**, i.e. **nearest-neighbor
 upscaling**, so QR **modules** stay hard-edged; the app reads the image's
-**natural resolution** and warns below 600 px wide. The app does not add a
-**quiet zone** — that's the source image's job.
+**natural resolution** and warns below 600 px wide. For imported images the
+app does not add a **quiet zone** — that's the source image's job; generated
+codes include one.
 
 ### Layout, preview, and print
 
@@ -68,9 +88,13 @@ exact** so colors aren't dropped.
 
 ### State
 
-Settings and the last loaded image are **persisted** to **localStorage** as
-**JSON** under the keys `qrSignMaker` and `qrSignMaker:img`, and **restored**
-on load. Every storage call is wrapped in **try/catch** and fails **silently**
+A **mode selector** switches between generate and import; each mode's
+**panel** is shown or hidden, and the last imported image is held in a
+**module-level variable** so switching modes loses nothing. Settings (now
+including the mode and encoded text) and the last imported image are
+**persisted** to **localStorage** as **JSON** under the keys `qrSignMaker` and
+`qrSignMaker:img`, and **restored** on load — with a **migration** check so
+settings saved before the generator existed still open in import mode. Every storage call is wrapped in **try/catch** and fails **silently**
 (e.g. a large image that exceeds the **storage quota** just isn't saved). A
 `DEFAULTS` map plus a `GROUPS` map drive the **per-section reset** buttons.
 
@@ -81,19 +105,35 @@ on load. Every storage call is wrapped in **try/catch** and fails **silently**
 This is a web page that makes printable signs with a QR code on them. The
 entire program is one file (**single-file web app**): the page's structure
 (**HTML markup**), its look (**CSS**), and its behavior (**JavaScript**) are
-all written directly inside that one file (**inline**). It doesn't pull in
-anyone else's code (**zero dependencies**), there's no step that converts the
-code before it runs (**no build step**), and it never talks to the internet
+all written directly inside that one file (**inline**). The one piece of
+someone else's code it uses, the QR encoder, is copied into the file rather
+than downloaded (**vendored**), there's no step that converts the code before
+it runs (**no build step**), and it never talks to the internet
 once loaded (**offline**). It's hosted for free by GitHub as plain files
 (**static site**, **GitHub Pages**), and publishing a new version is just
 uploading the file to the main branch (**deployment**). To get a PDF, it asks
 the browser's normal print feature to do the work (**print pipeline**).
 
+To make a QR code, you type some text. The encoder (**qrcodegen**, a free
+library under the **MIT license**, written in **TypeScript** and converted to
+ordinary JavaScript, **transpiled**, before being pasted in) works out the
+smallest square grid that can hold your text (**QR version**) using the
+tightest packing available for those characters (**encoding mode**), and adds
+the maximum amount of redundant data so a scuffed or partly covered sign still
+scans (**error correction level H**). It hands back a grid of black-and-white
+cells (**module matrix**), and the app draws each black cell as a tiny square
+in one long drawing instruction (**SVG path**), leaving a four-cell blank
+border (**quiet zone**). Spaces at the ends of your text are removed first
+(**trimmed**). If the text is too long for the grid to hold at that safety
+level (**capacity**), the library refuses with an error (**RangeError**), which
+the app catches and shows as a red note instead of crashing.
+
 All the code is wrapped in a sealed-off bubble so its internal names can't
 clash with anything else on the page (**IIFE**, avoiding the **global
 scope**). It works by saying "when this happens, run that" (**event
-listeners**) against the browser's live model of the page (**DOM**). You can
-give it an image by clicking a box that opens a file chooser (**file input**
+listeners**) against the browser's live model of the page (**DOM**). Instead of
+typing text you can switch modes (**mode selector**) and give it an image by
+clicking a box that opens a file chooser (**file input**
 — and the box also works with the keyboard, **accessibility**), by dragging a
 file onto the window (**drag and drop**), or by pasting (**Clipboard API**).
 A built-in browser helper opens the file (**FileReader**), either as text if
@@ -114,8 +154,9 @@ not a picture of one, when it reaches the PDF. For dot-grid images, it tells
 the browser to enlarge by copying dots rather than smoothing them (**image-
 rendering: pixelated**, **nearest-neighbor upscaling**), so the QR code's
 little squares (**modules**) stay sharp, and it warns you if the original is
-too small (**natural resolution**). It does *not* add the blank border a
-scanner needs around the code (**quiet zone**).
+too small (**natural resolution**). For imported images it does *not* add the
+blank border a scanner needs around the code (**quiet zone**); generated codes
+already have one.
 
 One function re-applies every setting whenever you touch a control (**render
 function**). It does this by setting named values the styling can look up
@@ -132,9 +173,13 @@ everything on the page (**getComputedStyle**) to warn you if it won't fit
 shrinking, and tells the browser not to drop colors to save ink
 (**print-color-adjust**).
 
-Your settings and last image are remembered in a small storage area the
-browser keeps for this site (**localStorage**), saved as structured text
-(**JSON**) and reloaded next visit (**persistence**). If saving fails — say
+Your settings, the text you typed, and your last imported image are
+remembered in a small storage area the browser keeps for this site
+(**localStorage**), saved as structured text (**JSON**) and reloaded next visit
+(**persistence**). The last imported image is also kept in memory while you
+flip between modes, so nothing is lost. Settings saved by the older version of
+the app, which had no text mode, are detected and opened in image mode
+(**migration**). If saving fails — say
 the image is too big for the browser's storage limit (**storage quota**) —
 the app just carries on quietly (**try/catch**, **fail silently**). Each panel
 has its own reset button that puts only that panel back to its starting values
@@ -151,7 +196,9 @@ has its own reset button that puts only that panel back to its starting values
 | **HTML / CSS / JavaScript** | page structure / page look / page behavior | all three are inline in the one `index.html` |
 | **single-file web app** | a whole program in one HTML file | `index.html` is the entire app; LICENSE and README are the only other files |
 | **inline** (CSS/JS) | code written inside the page instead of separate files | the `<style>` and `<script>` blocks in `index.html` |
-| **zero dependencies / no build step** | uses no outside code and needs no conversion before running | "Edit `index.html` and reload" (README → Development) |
+| **vendoring** | copying a library's code into your project instead of downloading it at build or run time | Nayuki's `qrcodegen` is pasted into a `<script>` block with its license header |
+| **no build step** | needs no conversion before running | "Edit `index.html` and reload" (README → Development) |
+| **transpiling** | converting code from one language to another at the same level, e.g. TypeScript → JavaScript | the encoder ships as `qrcodegen.ts`; it was compiled once with `tsc` and the output pasted in |
 | **offline** | works with no internet connection | no fetches, fonts, or CDNs; download the file and open it locally |
 | **static site** | a website made of plain files, no server-side program | the published `index.html` |
 | **GitHub Pages** | GitHub's free static-site hosting | https://pizzacatz.github.io/qr-sign-maker/ |
@@ -161,6 +208,22 @@ has its own reset button that puts only that panel back to its starting values
 | **IIFE** | a function that runs immediately, walling off its variables | the whole script is `(function () { ... })();` |
 | **global scope** | names visible to every script on the page | the IIFE keeps `apply`, `fit`, `KEY`, etc. out of it |
 | **accessibility (keyboard)** | usable without a mouse | the drop zone has `tabindex="0"` and opens the chooser on Enter/Space |
+
+### QR generation
+
+| Term | Plain meaning | In this project |
+|---|---|---|
+| **qrcodegen** | Nayuki's QR encoder library (MIT) | `qrcodegen.QrCode.encodeText(text, qrcodegen.QrCode.Ecc.HIGH)` |
+| **QR version** | symbol size, 1 (21×21) to 40 (177×177) | chosen automatically; shown in the info line as "version N" |
+| **encoding mode** | how characters are packed: numeric, alphanumeric, byte, kanji | `encodeText` picks the tightest mode that fits the text |
+| **error correction level** | how much redundant data is added (L 7%, M 15%, Q 25%, H 30%) | fixed at H; the README explains this is for scanning a printed sign from a distance |
+| **capacity** | the most data a symbol can hold at a given level | about 1,270 bytes at level H; exceeding it throws `RangeError` |
+| **module matrix** | the grid of dark/light cells | read with `code.size` and `code.getModule(x, y)` in `qrToSvg()` |
+| **SVG path** | one element describing a shape as move/line commands | every dark module appends `M x y h1v1h-1z`; one `<path>` draws the whole code |
+| **quiet zone** (generated) | the blank border a scanner needs | `QUIET = 4` modules added to the viewBox on every side |
+| **trimming** | removing leading and trailing whitespace | `$('qrText').value.trim()` so a stray newline can't silently change the code |
+| **mode selector** | a control that switches between two ways of working | `<select id="qrMode">`; `renderQr()` shows one panel and hides the other |
+| **migration** (of stored data) | adapting data saved by an older version | `restore()` opens in import mode when an image exists but no `qrMode` was saved |
 
 ### Input & files
 
@@ -179,7 +242,7 @@ has its own reset button that puts only that panel back to its starting values
 |---|---|---|
 | **vector** | an image stored as shapes; sharp at any size | SVG QR codes are inlined and stay vector in the PDF |
 | **raster** | an image stored as a grid of dots | PNG / JPG / WebP input |
-| **SVG** | the web's vector image format (it's text) | preferred input; README tip: "Generate your QR code as SVG" |
+| **SVG** | the web's vector image format (it's text) | generated codes are built as SVG; for imports the README recommends SVG |
 | **DOMParser** | turns text into a structured document | `setSvg()` parses the SVG and checks for `parsererror` |
 | **viewBox** | an SVG's internal coordinate box, which lets it scale | synthesized from `width`/`height` if missing, then those are removed |
 | **preserveAspectRatio** | how an SVG fits its box without distorting | set to `xMidYMid meet` (centered, fit inside) |
@@ -188,7 +251,7 @@ has its own reset button that puts only that panel back to its starting values
 | **nearest-neighbor upscaling** | enlarging by repeating each dot | what `pixelated` asks the browser to do |
 | **natural resolution** | an image's real pixel size | `img.naturalWidth`; under 600 px triggers the "low resolution" warning |
 | **module** | one black or white square of a QR code | the reason for crisp-edge rendering on both paths |
-| **quiet zone** | blank margin a scanner needs around a QR code | the app does *not* add one (README → Tips) |
+| **quiet zone** (imported) | blank margin a scanner needs around a QR code | the app does *not* add one to imported images (README → Tips) |
 | **sanitization** | removing dangerous parts of untrusted input | `<script>` elements are stripped from SVGs. *Partial only* — e.g. `onload=` attributes are not removed |
 | **inlining** (SVG) | placing the image's own markup into the page | `document.importNode(svg, true)` into `#qr` |
 | **print pipeline / Save as PDF** | the browser's built-in print-to-PDF | the **Save as PDF / Print…** button just calls `window.print()` |
@@ -212,7 +275,7 @@ has its own reset button that puts only that panel back to its starting values
 | Term | Plain meaning | In this project |
 |---|---|---|
 | **render function** | one function that redraws everything from the current settings | `apply()`, called on every control's `input` event |
-| **localStorage** | small per-site storage kept by the browser | keys `qrSignMaker` (settings) and `qrSignMaker:img` (last image) |
+| **localStorage** | small per-site storage kept by the browser | keys `qrSignMaker` (settings, mode, and text) and `qrSignMaker:img` (last imported image) |
 | **JSON** | a standard text format for structured data | settings and image are `JSON.stringify`'d before saving |
 | **persistence / restore** | remembering state across visits | `save()` / `saveImage()` write; `restore()` reads on load. Clearing site data resets it |
 | **storage quota** | the size limit on browser storage | a large raster data URL can exceed it — *inferred*, not observed |
@@ -223,5 +286,6 @@ has its own reset button that puts only that panel back to its starting values
 
 | Term | Plain meaning | In this project |
 |---|---|---|
-| **MIT License** | a short, permissive open-source license | `LICENSE` |
-| **project status: complete** | finished; no new features planned | declared at the top of the README |
+| **MIT License** | a short, permissive open-source license | `LICENSE`; the vendored encoder is MIT too, which is why it could be pasted in without changing the project's license |
+| **license compatibility** | whether two licenses allow combining code | the first candidate (mini-qr) was GPL-3.0, which would have forced the whole project to GPL; the plain-modules requirement made it unnecessary |
+| **project status: complete** | finished; no new features planned | declared at the top of the README, reaffirmed after adding generation |
